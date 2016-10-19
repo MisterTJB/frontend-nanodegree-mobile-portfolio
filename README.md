@@ -107,3 +107,12 @@ In this final attempt, the critical CSS was identified using a [critical path ge
 As well, `profilepic.jpg` was compressed to supress image optimisation warnings on PageSpeed.
 
 This final iteration gives mobile and desktop scores of 95 when `index.html` is served from my local machine.
+
+#### Recreating /dist with Gulp
+
+As per the rubric, this section includes instructions for recreating the `/dist` folder with Gulp.
+
+Gulp was used to generate the minified files in `/dist`. Assuming that `gulp`, `npm`, etc. are installed, this process can be reenacted by: 
+
+1. Run `npm install` to create the `node_modules` directory containing dependencies
+2. Run `gulp minify-html minify-css minify-js copy` to minify each of the HTML, CSS, and JS files, respectively, and copy over necessary assets from the `/src` directory (e.g. images, etc.)
