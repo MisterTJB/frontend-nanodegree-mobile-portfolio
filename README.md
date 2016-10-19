@@ -53,3 +53,57 @@ The portfolio was built on Twitter's <a href="http://getbootstrap.com/">Bootstra
 
 * <a href="http://getbootstrap.com/css/">Bootstrap's CSS Classes</a>
 * <a href="http://getbootstrap.com/components/">Bootstrap's Components</a>
+
+## Steps Taken
+
+### Part 1
+
+#### Initial Analysis
+
+Running PageSpeed over `index.html` without any optimisation gives a PageSpeed score of 77 for mobile, and 30 for desktop.
+
+The most immediate concerns are render-blocking JavaScript and CSS, and image optimisation. Less pressing, for now, are caching, compression, and minification.
+
+On review of `index.html`, it is obvious that the render-blocking `analytics.js` is superfluous: it doesn't contribute to the rendering of the page, and its execution could be deferred until rendering is complete.
+
+As well, there are unnecessary stylesheets that are block rendering (namely `print.css`); PageSpeed also suggests 'optimising delivery' of the CSS for fonts.
+
+It is difficult to imagine how `style.css` could be optimised away, given that it is necessary for rendering the page. Given that it is ~50 lines lone, and contains styles for dozens of elements, I'm hesitant to inline it.
+
+Lastly, the CSS for the Open Sans font takes approximately 300ms to download. Removing the link to Open Sans improves the desktop score to 91, so it is important to determine whether any optimisation can be achieved here (assuming that Open Sans cannot be jettisoned altogether).
+
+#### First Iteration
+
+The goals of this first step are to remove (or minimise the effects of) any render-blocking CSS and Javascript.
+
+First, the Open Sans CSS was examined to determine whether it could be optimised. The CSS returned by the Google API includes definitions for character sets that are unused in the copy on the page; as such, the latin font family definitions were moved in to `style.css`. This improves the PageSpeed score to 90 on desktop, though it is still 27 for mobile.
+
+Assuming that Open Sans absolutely _must_ be included (it doesn't look substantially different than the system sans serif to me...), then it is hard to imagine how its footprint or latency could be improved (without some kind of lazy loading).
+
+Secondly, a media query was added to the link to `print.css` so that it is only loaded when the browser attempts to print a page. This seemingly had no effect on the PageSpeed score. This file is tiny (481 bytes) and probably arrives long before `style.css` (3 KB), so its render-blocking effect is overwhelmed by the influence of `style.css`.
+
+Lastly, the render-blocking Javascript pertaining to analytics (which can be deferred until the page is loaded) is annotated with the `async` directive, which allows the browser to initiate rendering without executing the Javascript.
+
+Given that `analytics.js` takes 630ms to download, and then another 23ms to execute, this has a considerable effect on rendering.
+
+The PageSpeed scores are now 29 and 92 for mobile and desktop, respectively. A major issue on mobile are the image sizes.
+
+#### Second Iteration
+
+The PageSpeed analysis indicates that `pizzeria.jpg` is unnecessarily large. On reviewing its `img` tag, it is clear that `pizzeria.jpg` need not be more than 100px wide (200px for 2x displays). As such, this image has been compressed and `index.html` has been updated to include a `srcset` attribute that loads the appropriate image for a given device.
+
+This has improved the PageSpeed score to 86 and 88 on mobile and desktop.
+
+#### Third Iteration
+
+Given that I have no control over compression or caching (i.e. I'm using the Python `SimpleHTTPServer`, which seemingly doesn't allow for those parameters to be specified), the last option for improving the PageSpeed score is to minify HTML, CSS, and JavaScript.
+
+Using `Gulp`, all of the Javascript, HTML, and CSS was minified. The resulting scores for mobile and desktop were 86 and 93, respectively; it seems that the last viable options afforded to me are to optimise `profilepic.jpg`, and to further optimise the `style.css`.
+
+#### Final Iteration
+
+In this final attempt, the critical CSS was identified using a [critical path generator](https://jonassebastianohlsson.com/criticalpathcssgenerator/) and then inlining this CSS, and loading the non-critical CSS at the end of the HTML document.
+
+As well, `profilepic.jpg` was compressed to supress image optimisation warnings on PageSpeed.
+
+This final iteration gives mobile and desktop scores of 95 when `index.html` is served from my local machine.
