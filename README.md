@@ -1,61 +1,5 @@
 ## Website Performance Optimization portfolio project
 
-Your challenge, if you wish to accept it (and we sure hope you will), is to optimize this online portfolio for speed! In particular, optimize the critical rendering path and make this page render as quickly as possible by applying the techniques you've picked up in the [Critical Rendering Path course](https://www.udacity.com/course/ud884).
-
-To get started, check out the repository and inspect the code.
-
-### Getting started
-
-####Part 1: Optimize PageSpeed Insights score for index.html
-
-Some useful tips to help you get started:
-
-1. Check out the repository
-1. To inspect the site on your phone, you can run a local server
-
-  ```bash
-  $> cd /path/to/your-project-folder
-  $> python -m SimpleHTTPServer 8080
-  ```
-
-1. Open a browser and visit localhost:8080
-1. Download and install [ngrok](https://ngrok.com/) to the top-level of your project directory to make your local server accessible remotely.
-
-  ``` bash
-  $> cd /path/to/your-project-folder
-  $> ./ngrok http 8080
-  ```
-
-1. Copy the public URL ngrok gives you and try running it through PageSpeed Insights! Optional: [More on integrating ngrok, Grunt and PageSpeed.](http://www.jamescryer.com/2014/06/12/grunt-pagespeed-and-ngrok-locally-testing/)
-
-Profile, optimize, measure... and then lather, rinse, and repeat. Good luck!
-
-####Part 2: Optimize Frames per Second in pizza.html
-
-To optimize views/pizza.html, you will need to modify views/js/main.js until your frames per second rate is 60 fps or higher. You will find instructive comments in main.js. 
-
-You might find the FPS Counter/HUD Display useful in Chrome developer tools described here: [Chrome Dev Tools tips-and-tricks](https://developer.chrome.com/devtools/docs/tips-and-tricks).
-
-### Optimization Tips and Tricks
-* [Optimizing Performance](https://developers.google.com/web/fundamentals/performance/ "web performance")
-* [Analyzing the Critical Rendering Path](https://developers.google.com/web/fundamentals/performance/critical-rendering-path/analyzing-crp.html "analyzing crp")
-* [Optimizing the Critical Rendering Path](https://developers.google.com/web/fundamentals/performance/critical-rendering-path/optimizing-critical-rendering-path.html "optimize the crp!")
-* [Avoiding Rendering Blocking CSS](https://developers.google.com/web/fundamentals/performance/critical-rendering-path/render-blocking-css.html "render blocking css")
-* [Optimizing JavaScript](https://developers.google.com/web/fundamentals/performance/critical-rendering-path/adding-interactivity-with-javascript.html "javascript")
-* [Measuring with Navigation Timing](https://developers.google.com/web/fundamentals/performance/critical-rendering-path/measure-crp.html "nav timing api"). We didn't cover the Navigation Timing API in the first two lessons but it's an incredibly useful tool for automated page profiling. I highly recommend reading.
-* <a href="https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/eliminate-downloads.html">The fewer the downloads, the better</a>
-* <a href="https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/optimize-encoding-and-transfer.html">Reduce the size of text</a>
-* <a href="https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/image-optimization.html">Optimize images</a>
-* <a href="https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching.html">HTTP caching</a>
-
-### Customization with Bootstrap
-The portfolio was built on Twitter's <a href="http://getbootstrap.com/">Bootstrap</a> framework. All custom styles are in `dist/css/portfolio.css` in the portfolio repo.
-
-* <a href="http://getbootstrap.com/css/">Bootstrap's CSS Classes</a>
-* <a href="http://getbootstrap.com/components/">Bootstrap's Components</a>
-
-## Steps Taken
-
 ### Part 1
 
 #### Initial Analysis
@@ -108,7 +52,7 @@ As well, `profilepic.jpg` was compressed to supress image optimisation warnings 
 
 This final iteration gives mobile and desktop scores of 95 when `index.html` is served from my local machine.
 
-#### Recreating /dist with Gulp
+#### Recreating `/dist` with Gulp
 
 As per the rubric, this section includes instructions for recreating the `/dist` folder with Gulp.
 
@@ -116,3 +60,51 @@ Gulp was used to generate the minified files in `/dist`. Assuming that `gulp`, `
 
 1. Run `npm install` to create the `node_modules` directory containing dependencies
 2. Run `gulp minify-html minify-css minify-js copy` to minify each of the HTML, CSS, and JS files, respectively, and copy over necessary assets from the `/src` directory (e.g. images, etc.)
+
+### Part Two
+
+#### Analysis (Scrolling)
+
+To begin, a timeline was recorded during scrolling. The timeline shows that `updatePositions()` is causing a forced synchronous layout; this is an obvious opportunity for refactoring.
+
+![Repeated forced synchronous layouts](screenshots/fsl.png)
+
+Reviewing timeline and the implementation of `updatePositions()`, it appears that `var phase = Math.sin((document.body.scrollTop / 1250) + (i % 5));` causes the forced synchronous layout when the `scrollTop` property is accessed. To prevent the forced synchronous layout on every iteration through the loop, it should be accessed once before the loop executes.
+
+#### First Improvement
+
+The access of `scrollTop` has been refactored out of the loop, which has solved the repeated forced synchronous layouts.
+
+![Fixed repeated forced synchronous layout](screenshots/fixed_fsl.png)
+
+The logging code indicates that the `Average scripting time to generate last 10 frames` is approximately 1ms (versus 28ms in the unoptimised version).
+
+#### Analysis (Resizing)
+
+The average time to resize pizzas is reported by the logging code as being between 135-155ms. A review of the timeline shows that `determineDx` is causing a succession of forced synchronous layouts.
+
+![Forced synchronous layouts caused by determineDx](screenshots/determine_dx_fsl.png)
+
+Reviewing `determineDx`, the issue appears to be related to the calls to `offsetWidth` on the pizza element, and the enclosing `div` for the pizzas. Given that pizzas are of a constant size, this probably doesn't need to be recomputed for each pizza.
+
+To avoid layout thrashing, the code has been changed such that these properties are accessed once and passed in to `determineDx`.
+
+As can be seen in the recorded timeline, this solves the layout thrashing issue.
+
+![Fixed forced synchronous layouts caused by determineDx](screenshots/determine_dx_fsl_fixed.png)
+
+The average time to resize pizzas is now approximately 9ms.
+
+Reviewing the code again, it is obvious that a query selector is being run against the DOM on every iteration of the loop. Refactoring this out improves performance markedly: the average time required to resize pizzas is now approximately 6ms.
+
+Another query selector was identified whose results could have been memoized. Doing so reduces the time to resize pizzas to between 1.5-2.5ms.
+
+#### Analysis (Scrolling, revisited)
+
+On reviewing the timeline for scrolling, with `updatePosition` (supposedly) optimised, it is clear that there are a handful of long-running frames that are still attributable to the `updatePosition` method.
+
+Reviewing the method reveals expensive calls to `document.querySelectorAll('.mover')` that need not be repeated (i.e. this set of elements is consistent throughout the lifespan of the program).
+
+This was refactored such that it was only called once.
+
+The FPS meter in Chrome now shows 59.8 FPS during scrolling (with transient dips ~30FPS when scrolling direction, etc. changes).
