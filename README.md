@@ -1,5 +1,11 @@
 ## Website Performance Optimization portfolio project
 
+#### Note
+
+[Part 1](https://mistertjb.github.io/frontend-nanodegree-mobile-portfolio/dist/index.html) and [Part 2](https://mistertjb.github.io/frontend-nanodegree-mobile-portfolio/dist/views/pizza.html) can be accessed via GitHub Pages.
+
+
+
 ### Part 1
 
 #### Initial Analysis
