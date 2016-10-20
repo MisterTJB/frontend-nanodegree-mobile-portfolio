@@ -114,3 +114,7 @@ Reviewing the method reveals expensive calls to `document.querySelectorAll('.mov
 This was refactored such that it was only called once.
 
 The FPS meter in Chrome now shows 59.8 FPS during scrolling (with transient dips ~30FPS when scrolling direction, etc. changes).
+
+#### Final Revision
+
+On the advice of a reviewer, the number of background pizza images has been reduced such that there are exactly as many as required to populate the screen (as opposed to rendering 200, which are unlikely to all appear at once). This reduces the average time to generate 10 frames to approximately 0.3ms.
